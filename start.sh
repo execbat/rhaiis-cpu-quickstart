@@ -8,7 +8,7 @@ IMAGE="${IMAGE:-registry.redhat.io/rhaii-early-access/vllm-cpu-rhel9:3.5.0-ea.2-
 CACHE_DIR="${CACHE_DIR:-$HOME/rhaii-cache}"
 CONTAINER="inference-server"
 PORT=8000
-HOST="127.0.0.1" # changed localhost to 127.0.0.1 as attempts to connect through IPv6 sometimes fails
+HOST="${HOST:-127.0.0.1}"
 
 # --- Colors ---
 RED='\033[0;31m'
@@ -185,18 +185,12 @@ header "Loading model (this takes 2-10 minutes on first run)..."
 
 SECONDS=0
 while true; do
-    # We check readiness via the actual /health endpoint, not log text —
-    # message formats differ between vLLM versions (e.g., "Uvicorn running"
-    # vs. "Application startup complete" in yours).
-    # if curl -sf "http://localhost:${PORT}/health" &>/dev/null; then
     if curl -sf "http://${HOST}:${PORT}/health" &>/dev/null; then
         ok "Server ready in ${SECONDS}s"
         break
     fi
 
-    # We consider only actual tracebacks/crashes to be fatal, not harmless
-    # warnings like "Failed to create oneDNN linear, fallback to torch linear"
-    # (this is just a fallback to a slower backend, not an error).
+    # Only treat actual tracebacks/crashes as fatal, not oneDNN fallback warnings
     if $RUNTIME logs "$CONTAINER" 2>&1 | grep -qE "Traceback \(most recent call last\)|RuntimeError:|CUDA out of memory|OutOfMemoryError"; then
         echo
         fail "Server failed to start. Check logs: $RUNTIME logs $CONTAINER"
@@ -220,7 +214,6 @@ done
 # --- Verify ---
 header "Verifying the API..."
 
-# HEALTH=$(curl -sf "http://localhost:${PORT}/health" 2>/dev/null && echo "healthy" || echo "unhealthy")
 HEALTH=$(curl -sf "http://${HOST}:${PORT}/health" 2>/dev/null && echo "healthy" || echo "unhealthy")
 if [ "$HEALTH" = "healthy" ]; then
     ok "Health endpoint: healthy"
@@ -228,7 +221,6 @@ else
     fail "Health endpoint not responding. Check logs: $RUNTIME logs $CONTAINER"
 fi
 
-# MODELS=$(curl -s "http://localhost:${PORT}/v1/models" 2>/dev/null)
 MODELS=$(curl -s "http://${HOST}:${PORT}/v1/models" 2>/dev/null)
 if echo "$MODELS" | jq -e '.data[0].id' &>/dev/null; then
     MODEL_ID=$(echo "$MODELS" | jq -r '.data[0].id')
@@ -241,7 +233,6 @@ fi
 header "Making your first inference call..."
 echo
 
-# RESPONSE=$(curl -s "http://localhost:${PORT}/v1/chat/completions" \
 RESPONSE=$(curl -s "http://${HOST}:${PORT}/v1/chat/completions" \
   -H "Content-Type: application/json" \
   -d "{
@@ -263,7 +254,6 @@ echo -e "${BOLD}Tokens used:${NC} $TOKENS (cost on this server: \$0.00)"
 # --- Classification demo ---
 header "Bonus: classifying text..."
 
-# POS=$(curl -s "http://localhost:${PORT}/v1/chat/completions" \
 POS=$(curl -s "http://${HOST}:${PORT}/v1/chat/completions" \
   -H "Content-Type: application/json" \
   -d "{
@@ -272,7 +262,6 @@ POS=$(curl -s "http://${HOST}:${PORT}/v1/chat/completions" \
     \"max_tokens\": 5
   }" | jq -r '.choices[0].message.content')
 
-# NEG=$(curl -s "http://localhost:${PORT}/v1/chat/completions" \
 NEG=$(curl -s "http://${HOST}:${PORT}/v1/chat/completions" \
   -H "Content-Type: application/json" \
   -d "{
@@ -287,7 +276,6 @@ echo -e "  \"The deployment failed and data was lost.\"    → ${RED}${NEG}${NC}
 # --- Summary ---
 header "Done!"
 echo
-# echo -e "  The Red Hat AI Inference Server is running at ${BOLD}http://localhost:${PORT}${NC}"
 echo -e "  The Red Hat AI Inference Server is running at ${BOLD}http://${HOST}:${PORT}${NC}"
 echo -e "  Model: ${BOLD}$MODEL${NC}"
 echo -e "  API: ${BOLD}OpenAI-compatible${NC} (/v1/chat/completions)"
@@ -295,7 +283,6 @@ echo -e "  Cache: ${BOLD}$CACHE_DIR${NC} (weights persist across restarts)"
 echo
 echo "  Try your own prompt:"
 echo
-# echo "    curl -s http://localhost:${PORT}/v1/chat/completions \\"
 echo "    curl -s http://${HOST}:${PORT}/v1/chat/completions \\"
 echo "      -H 'Content-Type: application/json' \\"
 echo "      -d '{\"model\": \"$MODEL\", \"messages\": [{\"role\": \"user\", \"content\": \"YOUR QUESTION HERE\"}], \"max_tokens\": 150}' | jq '.choices[0].message.content'"
