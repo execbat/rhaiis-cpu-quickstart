@@ -7,7 +7,8 @@ set -e
 
 CPUEVAL_DIR="${CPUEVAL_DIR:-$HOME/.cpueval}"
 PORT="${PORT:-8000}"
-ENDPOINT="http://localhost:${PORT}"
+#ENDPOINT="http://localhost:${PORT}"
+ENDPOINT="http://127.0.0.1:${PORT}"
 
 # --- Colors ---
 RED='\033[0;31m'
@@ -82,11 +83,27 @@ info "Installing dependencies..."
 pip install --quiet ansible-core 2>&1 | tail -1
 ok "ansible-core installed"
 
+pip install --quiet "guidellm==0.7.2" 2>&1 | tail -1
+ok "guidellm installed"
+
 # Install Ansible collections
 if [ -f "$CPUEVAL_DIR/vllm-cpu-perf-eval/automation/test-execution/ansible/requirements.yml" ]; then
     ansible-galaxy collection install -r "$CPUEVAL_DIR/vllm-cpu-perf-eval/automation/test-execution/ansible/requirements.yml" --force &>/dev/null
     ok "Ansible collections installed"
 fi
+
+# --- Hugging Face token ---
+if [ -z "$HF_TOKEN" ]; then
+    echo -e "  cpueval needs your Hugging Face token to validate model access."
+    echo -e "  (free at ${BLUE}huggingface.co/settings/tokens${NC}):"
+    read -rsp "  HF_TOKEN: " HF_TOKEN
+    echo
+    if [ -z "$HF_TOKEN" ]; then
+        fail "HF_TOKEN is required to run the benchmark."
+    fi
+fi
+export HF_TOKEN
+ok "Hugging Face token set"
 
 # --- Run benchmark ---
 header "Running benchmark against ${ENDPOINT}..."
@@ -103,7 +120,9 @@ export LOADGEN_HOSTNAME=localhost
 
 ./cpueval run --suite chat-smoke \
   --workload chat \
+  --model "$MODEL_ID" \
   --extra ansible_connection=local \
+  --extra ansible_become=false \
   --extra guidellm_use_container=false
 
 # --- Show results ---
