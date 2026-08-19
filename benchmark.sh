@@ -7,8 +7,8 @@ set -e
 
 CPUEVAL_DIR="${CPUEVAL_DIR:-$HOME/.cpueval}"
 PORT="${PORT:-8000}"
-#ENDPOINT="http://localhost:${PORT}"
-ENDPOINT="http://127.0.0.1:${PORT}"
+HOST="${HOST:-127.0.0.1}"
+ENDPOINT="http://${HOST}:${PORT}"
 
 # --- Colors ---
 RED='\033[0;31m'
@@ -116,7 +116,7 @@ cd "$CPUEVAL_DIR/vllm-cpu-perf-eval"
 
 export VLLM_ENDPOINT_MODE=external
 export VLLM_ENDPOINT_URL="$ENDPOINT"
-export LOADGEN_HOSTNAME=localhost
+export LOADGEN_HOSTNAME="$HOST"
 
 ./cpueval run --suite chat-smoke \
   --workload chat \
