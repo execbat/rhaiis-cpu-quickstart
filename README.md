@@ -347,12 +347,15 @@ podman run -d --name open-webui \
   -p 3000:8080 \
   -v open-webui:/app/backend/data \
   -e OPENAI_API_BASE_URL=http://host.containers.internal:8000/v1 \
+  -e 'DEFAULT_MODEL_METADATA={"capabilities":{"builtin_tools":false}}' \
   ghcr.io/open-webui/open-webui:main
 ```
 
 Open http://localhost:3000 in your browser. Create an admin account and start chatting.
 
 > **Note:** `host.containers.internal` lets the Open WebUI container reach the inference server running in its own container. On Docker, use `host.docker.internal` instead.
+>
+> **Why are built-in tools disabled?** Open WebUI's built-in tools (web search, code interpreter, etc.) inject tool schemas into the system prompt — often 1,500–2,500 tokens. With `MAX_MODEL_LEN=4096`, that leaves too little room for your actual conversation. On CPU, increasing the context length makes time-to-first-token proportionally slower. The [blog post](URL) covers tool calling on higher-spec hardware.
 
 ---
 
