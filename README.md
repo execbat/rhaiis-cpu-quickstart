@@ -222,6 +222,8 @@ Press `Ctrl+C` to stop watching. The server keeps running in the background.
 
 ## Step 4: Verify the server
 
+> **Troubleshooting:** If `curl localhost:8000` hangs or refuses the connection, try `127.0.0.1:8000` instead — some dual-stack Linux hosts resolve `localhost` to IPv6 (`::1`), which the container doesn't bind to.
+
 Check the health endpoint:
 
 ```bash
